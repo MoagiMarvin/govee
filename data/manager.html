@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Clinic feedback dashboard</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 34px 18px; background: #f3f6f4; color: #1e3027; font-family: Arial, sans-serif; }
+  main { max-width: 1040px; margin: auto; }
+  header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 24px; }
+  h1 { margin: 0; font-size: clamp(1.6rem, 4vw, 2rem); }
+  #summary, #status { color: #68766e; }
+  #summary { margin: 8px 0 0; }
+  #login-panel { max-width: 420px; margin: 8vh auto 0; padding: 26px; border: 1px solid #e1e9e3; border-radius: 16px; background: white; box-shadow: 0 12px 36px rgba(26, 65, 44, .08); }
+  #login-panel h1 { margin-bottom: 8px; }
+  #login-panel p { color: #5f6e65; line-height: 1.5; }
+  #login-form label { display: block; margin: 14px 0 6px; font-weight: bold; }
+  #login-form input { width: 100%; padding: 11px; border: 1px solid #cbd6ce; border-radius: 8px; font: inherit; }
+  #login-message { min-height: 1.5em; color: #a22; }
+  button { padding: 10px 14px; border: 0; border-radius: 9px; background: #176b45; color: white; font: inherit; font-weight: bold; cursor: pointer; }
+  button:disabled { opacity: .65; cursor: wait; }
+  #status { min-height: 1.5em; margin: 0 0 12px; }
+  .overview { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin: 22px 0; }
+  .overview-card { padding: 18px 20px; border: 1px solid #e1e9e3; border-radius: 14px; background: white; box-shadow: 0 5px 18px rgba(26, 65, 44, .04); }
+  .overview-card span { display: block; color: #68766e; font-size: .92rem; }
+  .overview-card strong { display: block; margin-top: 6px; font-size: 1.8rem; }
+  .analytics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin: 14px 0 26px; }
+  .analytics-card { min-width: 0; padding: 20px; border: 1px solid #e1e9e3; border-radius: 14px; background: white; box-shadow: 0 5px 18px rgba(26, 65, 44, .04); }
+  .analytics-card h2 { margin: 0; font-size: 1.08rem; }
+  .analytics-card > p { margin: 6px 0 18px; color: #68766e; font-size: .9rem; line-height: 1.45; }
+  .trend-chart { display: grid; height: 170px; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px; align-items: end; padding-top: 10px; }
+  .trend-day { display: grid; height: 100%; grid-template-rows: 18px 1fr 22px; gap: 6px; align-items: end; text-align: center; }
+  .trend-value, .trend-label { color: #68766e; font-size: .78rem; }
+  .trend-track { display: flex; height: 100%; align-items: end; justify-content: center; border-radius: 7px 7px 2px 2px; background: #f0f4f1; }
+  .trend-bar { width: min(28px, 70%); min-height: 3px; border-radius: 6px 6px 2px 2px; background: #31845a; }
+  .topic-list { display: grid; gap: 13px; }
+  .topic-row { display: grid; gap: 6px; }
+  .topic-label { display: flex; justify-content: space-between; gap: 12px; color: #526258; font-size: .88rem; }
+  .topic-track { height: 8px; overflow: hidden; border-radius: 999px; background: #f0f4f1; }
+  .topic-bar { height: 100%; border-radius: inherit; background: #d29a35; }
+  .patient-rating-bar { height: 100%; border-radius: inherit; background: #3979a3; }
+  .rating-sample { color: #68766e; font-size: .8rem; }
+  .analytics-empty { color: #68766e; font-size: .9rem; line-height: 1.5; }
+  .section-tabs { display: flex; gap: 10px; margin: 24px 0 0; border-bottom: 1px solid #dfe7e1; }
+  .section-tab { display: flex; align-items: center; gap: 9px; padding: 12px 16px; border: 0; border-bottom: 3px solid transparent; border-radius: 8px 8px 0 0; background: transparent; color: #59685f; font: inherit; font-weight: bold; cursor: pointer; }
+  .section-tab[aria-selected="true"] { border-bottom-color: #176b45; background: #eaf3ed; color: #145a3b; }
+  .section-count { display: inline-grid; min-width: 24px; height: 24px; place-items: center; padding: 0 6px; border-radius: 999px; background: #dce9df; font-size: .82rem; }
+  .section-panel { padding-top: 20px; }
+  .section-heading { margin: 0; font-size: 1.35rem; }
+  .section-description { margin: 6px 0 18px; color: #68766e; line-height: 1.5; }
+  .entry { margin: 12px 0; padding: 20px; border: 1px solid #e1e9e3; border-left: 4px solid #d29a35; border-radius: 12px; background: white; box-shadow: 0 5px 18px rgba(26, 65, 44, .04); }
+  .entry.patient { border-left-color: #3979a3; }
+  .entry h3 { margin: 0 0 10px; font-size: 1.08rem; }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; color: #526258; font-size: .88rem; }
+  .tag { padding: 5px 9px; border-radius: 999px; background: #edf3ee; }
+  .entry.patient .tag { background: #edf3f8; }
+  .message { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.55; }
+  .details { margin-top: 12px; color: #526258; font-size: .92rem; line-height: 1.5; }
+  .entry img { display: block; max-width: 100%; max-height: 320px; margin-top: 14px; border-radius: 8px; }
+  .empty { padding: 30px 20px; border: 1px dashed #cbd6ce; border-radius: 12px; background: #fafcfb; color: #68766e; text-align: center; }
+  @media (max-width: 900px) { .analytics { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (max-width: 760px) { .overview { grid-template-columns: repeat(2, minmax(0, 1fr)); } .analytics { grid-template-columns: 1fr; } }
+  @media (max-width: 520px) { body { padding: 18px 12px; } .overview { gap: 9px; } .overview-card { padding: 14px; } .section-tab { flex: 1; justify-content: center; padding: 11px 8px; font-size: .9rem; } .entry { padding: 16px; } .analytics-card { padding: 16px; } }
+</style>
+</head>
+<body>
+<section id="login-panel">
+  <h1>Manager login</h1>
+  <p>Sign in to view clinic feedback.</p>
+  <form id="login-form">
+    <label for="username">Username</label>
+    <input id="username" name="username" autocomplete="username" required>
+    <label for="password">Password</label>
+    <input id="password" name="password" type="password" autocomplete="current-password" required>
+    <button type="submit">Sign in</button>
+    <p id="login-message" role="status" aria-live="polite"></p>
+  </form>
+</section>
+<main id="dashboard" hidden>
+  <header>
+    <div>
+      <h1>Clinic feedback</h1>
+      <p id="summary">Loading submissions...</p>
+    </div>
+    <div>
+      <button id="refresh" type="button">Refresh</button>
+      <button id="logout" type="button">Log out</button>
+    </div>
+  </header>
+  <section class="overview" aria-label="Feedback totals">
+    <div class="overview-card"><span>Total feedback</span><strong id="total-count">0</strong></div>
+    <div class="overview-card"><span>Staff concerns</span><strong id="concern-total">0</strong></div>
+    <div class="overview-card"><span>Staff suggestions</span><strong id="suggestion-total">0</strong></div>
+    <div class="overview-card"><span>Patient reviews</span><strong id="review-total">0</strong></div>
+  </section>
+  <section class="analytics" aria-label="Feedback analytics">
+    <article class="analytics-card">
+      <h2>When feedback is coming in</h2>
+      <p>Daily submissions over the past seven days, based on the time each form was submitted.</p>
+      <div id="trend-chart" class="trend-chart" role="img" aria-label="Feedback submissions over the past seven days"></div>
+      <p id="trend-note" class="analytics-empty" hidden></p>
+    </article>
+    <article class="analytics-card">
+      <h2>Most reported staff concern topics</h2>
+      <p>Complaint topics, ranked by how often staff reported them.</p>
+      <div id="topic-list" class="topic-list"></div>
+    </article>
+    <article class="analytics-card">
+      <h2>Patient rating areas to watch</h2>
+      <p>Lowest average patient ratings first. A low score is a signal to review, not proof of a specific problem.</p>
+      <div id="patient-rating-list" class="topic-list"></div>
+    </article>
+  </section>
+  <p id="status" role="status" aria-live="polite"></p>
+  <nav class="section-tabs" aria-label="Feedback sections">
+    <button class="section-tab" id="problems-tab" type="button" aria-selected="true">
+      Problems &amp; suggestions <span class="section-count" id="problem-count">0</span>
+    </button>
+    <button class="section-tab" id="reviews-tab" type="button" aria-selected="false">
+      Patient reviews <span class="section-count" id="review-count">0</span>
+    </button>
+  </nav>
+  <section class="section-panel" aria-live="polite">
+    <h2 class="section-heading" id="section-heading">Problems &amp; suggestions</h2>
+    <p class="section-description" id="section-description">Concerns and suggestions submitted by clinic staff.</p>
+    <div id="entries"></div>
+  </section>
+</main>
+<script>
+const entriesElement = document.getElementById('entries');
+const summaryElement = document.getElementById('summary');
+const statusElement = document.getElementById('status');
+const refreshButton = document.getElementById('refresh');
+const loginPanel = document.getElementById('login-panel');
+const dashboard = document.getElementById('dashboard');
+const loginForm = document.getElementById('login-form');
+const loginMessage = document.getElementById('login-message');
+const problemTab = document.getElementById('problems-tab');
+const reviewsTab = document.getElementById('reviews-tab');
+const sectionHeading = document.getElementById('section-heading');
+const sectionDescription = document.getElementById('section-description');
+const problemCount = document.getElementById('problem-count');
+const reviewCount = document.getElementById('review-count');
+const reviewTotal = document.getElementById('review-total');
+const totalCount = document.getElementById('total-count');
+const concernTotal = document.getElementById('concern-total');
+const suggestionTotal = document.getElementById('suggestion-total');
+const trendChart = document.getElementById('trend-chart');
+const trendNote = document.getElementById('trend-note');
+const topicList = document.getElementById('topic-list');
+const patientRatingList = document.getElementById('patient-rating-list');
+let feedbackRecords = [];
+let activeSection = 'problems';
+const audienceLabels = { staff: 'Staff report', patient: 'Patient review' };
+const typeLabels = {
+  complaint: 'Concern',
+  suggestion: 'Suggestion',
+  compliment: 'Compliment',
+  patient_review: 'Patient experience'
+};
+const topicLabels = {
+  schedule: 'Scheduling and working hours',
+  facilities: 'Facilities and cleanliness',
+  supplies: 'Supplies and equipment',
+  staffing: 'Staffing and workload',
+  communication: 'Communication and teamwork',
+  safety: 'Safety',
+  waiting_time: 'Waiting time',
+  doctor_delay: 'Doctor availability or delays',
+  medication: 'Medication',
+  staff_care: 'Care from staff',
+  billing: 'Billing and costs',
+  visit_experience: 'Visit experience',
+  other: 'Something else'
+};
+const ratingLabels = {
+  waiting_time: 'Waiting time',
+  staff_kindness: 'Staff kindness',
+  cleanliness: 'Clinic cleanliness',
+  communication: 'Communication'
+};
+
+function addText(parent, tagName, className, value) {
+  const element = document.createElement(tagName);
+  if (className) element.className = className;
+  element.textContent = value;
+  parent.appendChild(element);
+  return element;
+}
+
+function makeEntry(record) {
+  const article = document.createElement('article');
+  article.className = 'entry ' + (record.audience === 'patient' ? 'patient' : 'problem');
+  const topic = record.heading || topicLabels[record.topic] || record.topic || 'Feedback';
+  addText(article, 'h3', '', topic);
+
+  const meta = document.createElement('div');
+  meta.className = 'meta';
+  addText(meta, 'span', 'tag', audienceLabels[record.audience] || 'Clinic feedback');
+  addText(meta, 'span', 'tag', typeLabels[record.type] || record.type || 'Feedback');
+  article.appendChild(meta);
+
+  if (record.message) addText(article, 'p', 'message', record.message);
+  if (Number.isFinite(Number(record.submittedAt)) && Number(record.submittedAt) > 0) {
+    addText(article, 'p', 'details', new Date(Number(record.submittedAt)).toLocaleString());
+  }
+  if (record.reportAbout) addText(article, 'p', 'details', 'About: ' + record.reportAbout);
+
+  if (record.rating != null) {
+    addText(article, 'p', 'details', 'Overall rating: ' + record.rating + ' / 5');
+  }
+  if (record.ratings && typeof record.ratings === 'object') {
+    const ratings = Object.entries(record.ratings)
+      .filter(([, value]) => value != null)
+      .map(([key, value]) => (ratingLabels[key] || key) + ': ' + value + ' / 5');
+    if (ratings.length) addText(article, 'p', 'details', ratings.join(' · '));
+  }
+  if (record.image && record.audience === 'staff') {
+    const image = document.createElement('img');
+    image.src = '/manager-image?path=' + encodeURIComponent(record.image);
+    image.alt = 'Image attached to staff feedback';
+    image.loading = 'lazy';
+    article.appendChild(image);
+  }
+  return article;
+}
+
+function renderAnalytics() {
+  const staffRecords = feedbackRecords.filter((record) => record.audience === 'staff');
+  const complaints = staffRecords.filter((record) => record.type === 'complaint');
+  const suggestions = staffRecords.filter((record) => record.type === 'suggestion');
+  const patientRecords = feedbackRecords.filter((record) => record.audience === 'patient');
+  totalCount.textContent = feedbackRecords.length;
+  concernTotal.textContent = complaints.length;
+  suggestionTotal.textContent = suggestions.length;
+  reviewTotal.textContent = patientRecords.length;
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const days = [];
+  for (let offset = 6; offset >= 0; offset--) {
+    const date = new Date(today);
+    date.setDate(today.getDate() - offset);
+    const key = date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0') +
+      '-' + String(date.getDate()).padStart(2, '0');
+    days.push({ key, label: date.toLocaleDateString(undefined, { weekday: 'short' }), count: 0 });
+  }
+  feedbackRecords.forEach((record) => {
+    const timestamp = Number(record.submittedAt);
+    if (!Number.isFinite(timestamp) || timestamp <= 0) return;
+    const date = new Date(timestamp);
+    const key = date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0') +
+      '-' + String(date.getDate()).padStart(2, '0');
+    const day = days.find((item) => item.key === key);
+    if (day) day.count++;
+  });
+
+  trendChart.replaceChildren();
+  const maxDailyCount = Math.max(1, ...days.map((day) => day.count));
+  days.forEach((day) => {
+    const column = document.createElement('div');
+    column.className = 'trend-day';
+    addText(column, 'span', 'trend-value', String(day.count));
+    const track = document.createElement('div');
+    track.className = 'trend-track';
+    const bar = document.createElement('div');
+    bar.className = 'trend-bar';
+    bar.style.height = day.count ? Math.max(5, (day.count / maxDailyCount) * 100) + '%' : '3px';
+    track.appendChild(bar);
+    column.appendChild(track);
+    addText(column, 'span', 'trend-label', day.label);
+    trendChart.appendChild(column);
+  });
+  const datedRecords = feedbackRecords.filter((record) => {
+    const timestamp = Number(record.submittedAt);
+    return Number.isFinite(timestamp) && timestamp > 0;
+  }).length;
+  trendNote.hidden = datedRecords > 0;
+  trendNote.textContent = feedbackRecords.length
+    ? 'New submissions will appear here. Earlier feedback without a submission date cannot be included in this timeline.'
+    : 'The timeline will appear after feedback has been submitted.';
+
+  const topicCounts = new Map();
+  complaints.forEach((record) => {
+    const topic = record.heading || topicLabels[record.topic] || record.topic || 'Other';
+    topicCounts.set(topic, (topicCounts.get(topic) || 0) + 1);
+  });
+  const topTopics = [...topicCounts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5);
+  topicList.replaceChildren();
+  if (!topTopics.length) {
+    addText(topicList, 'p', 'analytics-empty', 'No staff concerns yet. Reported topics will appear here.');
+  } else {
+    const maxTopicCount = topTopics[0][1];
+    topTopics.forEach(([topic, count]) => {
+      const row = document.createElement('div');
+      row.className = 'topic-row';
+      const label = document.createElement('div');
+      label.className = 'topic-label';
+      addText(label, 'span', '', topic);
+      addText(label, 'strong', '', String(count));
+      row.appendChild(label);
+      const track = document.createElement('div');
+      track.className = 'topic-track';
+      const bar = document.createElement('div');
+      bar.className = 'topic-bar';
+      bar.style.width = (count / maxTopicCount) * 100 + '%';
+      track.appendChild(bar);
+      row.appendChild(track);
+      topicList.appendChild(row);
+    });
+  }
+
+  const patientRatingTotals = new Map();
+  patientRecords.forEach((record) => {
+    if (!record.ratings || typeof record.ratings !== 'object') return;
+    Object.entries(record.ratings).forEach(([key, rawValue]) => {
+      const value = Number(rawValue);
+      if (!ratingLabels[key] || !Number.isInteger(value) || value < 1 || value > 5) return;
+      const totals = patientRatingTotals.get(key) || { sum: 0, count: 0, lowCount: 0 };
+      totals.sum += value;
+      totals.count++;
+      if (value <= 2) totals.lowCount++;
+      patientRatingTotals.set(key, totals);
+    });
+  });
+  const patientRatingAreas = [...patientRatingTotals.entries()]
+    .map(([key, totals]) => ({
+      label: ratingLabels[key],
+      average: totals.sum / totals.count,
+      count: totals.count,
+      lowCount: totals.lowCount
+    }))
+    .sort((a, b) => a.average - b.average || b.lowCount - a.lowCount);
+  patientRatingList.replaceChildren();
+  if (!patientRatingAreas.length) {
+    addText(patientRatingList, 'p', 'analytics-empty', 'Patient rating trends will appear after patients submit ratings.');
+    return;
+  }
+  patientRatingAreas.forEach((area) => {
+    const row = document.createElement('div');
+    row.className = 'topic-row';
+    const label = document.createElement('div');
+    label.className = 'topic-label';
+    addText(label, 'span', '', area.label);
+    addText(label, 'strong', '', area.average.toFixed(1) + ' / 5');
+    row.appendChild(label);
+    addText(row, 'span', 'rating-sample',
+      area.count + (area.count === 1 ? ' rating' : ' ratings') +
+      ' · ' + area.lowCount + ' low (1–2 stars)');
+    const track = document.createElement('div');
+    track.className = 'topic-track';
+    const bar = document.createElement('div');
+    bar.className = 'patient-rating-bar';
+    bar.style.width = (area.average / 5) * 100 + '%';
+    track.appendChild(bar);
+    row.appendChild(track);
+    patientRatingList.appendChild(row);
+  });
+}
+
+function renderSection() {
+  const isProblems = activeSection === 'problems';
+  const records = feedbackRecords.filter((record) =>
+    isProblems ? record.audience === 'staff' : record.audience === 'patient');
+  problemTab.setAttribute('aria-selected', String(isProblems));
+  reviewsTab.setAttribute('aria-selected', String(!isProblems));
+  sectionHeading.textContent = isProblems ? 'Problems & suggestions' : 'Patient reviews';
+  sectionDescription.textContent = isProblems
+    ? 'Concerns and suggestions submitted by clinic staff.'
+    : 'Patient ratings and comments about their clinic experience.';
+  entriesElement.replaceChildren();
+  if (!records.length) {
+    addText(entriesElement, 'p', 'empty', isProblems
+      ? 'No staff problems or suggestions have been submitted yet.'
+      : 'No patient reviews have been submitted yet.');
+    return;
+  }
+  records.forEach((record) => entriesElement.appendChild(makeEntry(record)));
+}
+
+async function loadFeedback() {
+  refreshButton.disabled = true;
+  statusElement.textContent = 'Loading feedback...';
+  try {
+    const response = await fetch('/api/feedback', { cache: 'no-store' });
+    if (response.status === 401) {
+      dashboard.hidden = true;
+      loginPanel.hidden = false;
+      statusElement.textContent = '';
+      return;
+    }
+    if (!response.ok) throw new Error('Could not load feedback (' + response.status + ').');
+    const body = await response.text();
+    feedbackRecords = body.split(/\r?\n/).filter(Boolean).map((line, index) => {
+      try {
+        return JSON.parse(line);
+      } catch {
+        throw new Error('Feedback record ' + (index + 1) + ' is damaged and could not be displayed.');
+      }
+    }).filter((record) => record.audience === 'staff' || record.audience === 'patient').reverse();
+
+    loginPanel.hidden = true;
+    dashboard.hidden = false;
+    const problemRecords = feedbackRecords.filter((record) => record.audience === 'staff');
+    const reviewRecords = feedbackRecords.filter((record) => record.audience === 'patient');
+    summaryElement.textContent = feedbackRecords.length +
+      (feedbackRecords.length === 1 ? ' total submission' : ' total submissions');
+    reviewTotal.textContent = reviewRecords.length;
+    problemCount.textContent = problemRecords.length;
+    reviewCount.textContent = reviewRecords.length;
+    renderAnalytics();
+    renderSection();
+    statusElement.textContent = 'Updated ' + new Date().toLocaleTimeString();
+  } catch (error) {
+    statusElement.textContent = error.message || 'Could not load feedback.';
+  } finally {
+    refreshButton.disabled = false;
+  }
+}
+
+refreshButton.addEventListener('click', loadFeedback);
+problemTab.addEventListener('click', () => {
+  activeSection = 'problems';
+  renderSection();
+});
+reviewsTab.addEventListener('click', () => {
+  activeSection = 'reviews';
+  renderSection();
+});
+loginForm.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  loginMessage.textContent = 'Signing in...';
+  const response = await fetch('/manager-login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams(new FormData(loginForm))
+  });
+  if (!response.ok) {
+    loginMessage.textContent = await response.text() || 'Sign-in failed.';
+    return;
+  }
+  loginForm.reset();
+  await loadFeedback();
+});
+document.getElementById('logout').addEventListener('click', async () => {
+  const response = await fetch('/manager-logout', { method: 'POST' });
+  if (!response.ok) {
+    statusElement.textContent = 'Could not log out. Please try again.';
+    return;
+  }
+  dashboard.hidden = true;
+  loginPanel.hidden = false;
+  loginMessage.textContent = '';
+});
+loadFeedback();
+</script>
+</body>
+</html>
